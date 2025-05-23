@@ -20,5 +20,5 @@ export default function OwnerInfo({ user }) {
 }
 
 export async function getServerSideProps(context) {
-  return requireAuth('owner')(context);
+  return requireAuth[('owner')('superowner')](context);
 }
