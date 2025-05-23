@@ -116,5 +116,5 @@ export default function OwnerAnnouncements({ user }) {
 }
 
 export async function getServerSideProps(context) {
-  return requireAuth[('owner')('superowner')](context);
+  return requireAuth[('owner'),('superowner')](context);
 }
