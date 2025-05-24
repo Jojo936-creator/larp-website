@@ -29,7 +29,7 @@ export default function Topbar({ user }) {
 
   const visiblePages = user ? staffPages.filter(page => {
     if (page.href.includes('admin') && user.level === 'staff') return false;
-    if (page.href.includes('owner') && user.level !== 'owner') return false;
+    if (page.href.includes('owner') && user.level !== 'owner' or 'superowner') return false;
     return true;
   }) : [];
 
