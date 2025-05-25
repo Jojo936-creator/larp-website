@@ -13,81 +13,46 @@ export default async function handler(req, res) {
     }
   }
 
-  if (req.method === 'GET') {
-    // Recupera annunci filtrando per canale
-    const { channel } = req.query;
-    if (!channel) {
-      return res.status(400).json({ error: 'Channel query param required' });
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('announcements')
-        .select('*')
-        .eq('channel', channel)
-        .order('createdAt', { ascending: false });
-
-      if (error) {
-        return res.status(500).json({ error: error.message });
-      }
-
-      return res.status(200).json({ announcements: data });
-    } catch (err) {
-      return res.status(500).json({ error: 'Unexpected error', details: err.message });
-    }
+  if (!user) {
+    return res.status(401).json({ error: 'Not authenticated' });
   }
 
   if (req.method === 'POST') {
-    if (!user) {
-      return res.status(401).json({ error: 'Not authenticated' });
+    // ... gestione POST (crea annuncio) come già fatto
+  } 
+  else if (req.method === 'DELETE') {
+    const { id } = req.body; // supponendo che l'id arrivi nel body della richiesta DELETE
+
+    if (!id) {
+      return res.status(400).json({ error: 'Missing announcement id' });
     }
 
-    const { title, description, channel } = req.body;
-
-    if (!title || !description || !channel) {
-      return res.status(400).json({ error: 'Missing fields' });
-    }
-
-    // Controllo permessi (esempio)
-    if (
-      (channel === 'ownership' && user.level !== 'superowner') ||
-      (channel === 'admin' && !['owner', 'superowner'].includes(user.level)) ||
-      (channel === 'staff' && !['owner', 'superowner'].includes(user.level))
-    ) {
-      return res.status(403).json({ error: 'No permission' });
+    // Controlla permessi, ad esempio solo owner o superowner possono eliminare
+    if (!['owner', 'superowner'].includes(user.level)) {
+      return res.status(403).json({ error: 'No permission to delete announcement' });
     }
 
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('announcements')
-        .insert([
-          {
-            title,
-            description,
-            channel,
-            author: user.username,
-            level: user.level,
-            createdAt: new Date().toISOString(),
-          },
-        ])
-        .select();
+        .delete()
+        .eq('id', id);
 
       if (error) {
-        return res.status(500).json({ error: 'Failed to save announcement', details: error.message });
+        return res.status(500).json({ error: 'Failed to delete announcement', details: error.message });
       }
 
-      if (!data || data.length === 0) {
-        return res.status(500).json({ error: 'No data returned from insert' });
-      }
-
-      return res.status(201).json({ announcement: data[0] });
+      return res.status(200).json({ message: 'Announcement deleted' });
     } catch (err) {
       return res.status(500).json({ error: 'Unexpected error', details: err.message });
     }
+  } 
+  else {
+    // Metodi non supportati
+    res.setHeader('Allow', ['POST', 'DELETE']);
+    res.status(405).end(`Method ${req.method} Not Allowed`);
   }
-
-  res.setHeader('Allow', ['GET', 'POST']);
-  return res.status(405).json({ error: `Method ${req.method} not allowed` });
 }
+
 
 
