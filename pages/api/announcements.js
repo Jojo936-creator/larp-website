@@ -47,6 +47,7 @@ export default async function handler(req, res) {
             createdAt: new Date().toISOString(),
           },
         ]);
+      .select();
 
       if (error) {
         return res.status(500).json({ error: 'Failed to save announcement', details: error.message });
