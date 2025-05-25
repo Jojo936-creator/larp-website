@@ -1,4 +1,3 @@
-// /pages/api/users.js
 import { supabaseAdmin } from '../../lib/supabaseAdmin';
 
 export default async function handler(req, res) {
@@ -6,29 +5,30 @@ export default async function handler(req, res) {
 
   try {
     switch (method) {
-      case 'GET':
-        // Fetch all users
-        const { data, error } = await supabaseAdmin.from('users').select('id, username, level');
+      case 'GET': {
+        const { data, error } = await supabaseAdmin.from('users').select('id, username, password, level');
         if (error) {
           console.error('Supabase error:', error);
           return res.status(500).json({ error: 'Failed to fetch users' });
         }
         return res.status(200).json(data);
+      }
 
-      case 'POST':
-        // Create a new user
+      case 'POST': {
         const { username, password, level } = req.body;
         if (!username || !password || !level) {
           return res.status(400).json({ error: 'Missing fields' });
         }
 
-        // Check if user exists
-        const { data: existingUser } = await supabaseAdmin
+        const { data: existingUser, error: existError } = await supabaseAdmin
           .from('users')
           .select('id')
           .eq('username', username)
           .single();
 
+        if (existError && existError.code !== 'PGRST116') {
+          return res.status(500).json({ error: existError.message });
+        }
         if (existingUser) {
           return res.status(409).json({ error: 'User already exists' });
         }
@@ -41,18 +41,18 @@ export default async function handler(req, res) {
           console.error('Insert error:', insertError);
           return res.status(500).json({ error: insertError.message });
         }
-        return res.status(201).json(insertedUser);
+        return res.status(201).json(insertedUser[0]);
+      }
 
-      case 'PUT':
-        // Update user info
-        const { id, newPassword, newLevel } = req.body;
+      case 'PUT': {
+        const { id, password, level } = req.body;
         if (!id) {
           return res.status(400).json({ error: 'Missing user id' });
         }
 
         const updateData = {};
-        if (newPassword) updateData.password = newPassword;
-        if (newLevel) updateData.level = newLevel;
+        if (password) updateData.password = password;
+        if (level) updateData.level = level;
 
         if (Object.keys(updateData).length === 0) {
           return res.status(400).json({ error: 'No update data provided' });
@@ -67,25 +67,26 @@ export default async function handler(req, res) {
           console.error('Update error:', updateError);
           return res.status(500).json({ error: updateError.message });
         }
-        return res.status(200).json(updatedUser);
+        return res.status(200).json(updatedUser[0]);
+      }
 
-      case 'DELETE':
-        // Delete user by id
-        const { userId } = req.body;
-        if (!userId) {
+      case 'DELETE': {
+        const { id } = req.query;
+        if (!id) {
           return res.status(400).json({ error: 'Missing user id' });
         }
 
         const { error: deleteError } = await supabaseAdmin
           .from('users')
           .delete()
-          .eq('id', userId);
+          .eq('id', id);
 
         if (deleteError) {
           console.error('Delete error:', deleteError);
           return res.status(500).json({ error: deleteError.message });
         }
         return res.status(204).end();
+      }
 
       default:
         res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
@@ -96,4 +97,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
+
 
