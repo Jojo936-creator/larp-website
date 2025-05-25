@@ -115,18 +115,4 @@ export default function ManageUser({ user }) {
     </>
   );
 }
-
-// Server-side auth check, esempio base
-export async function getServerSideProps(ctx) {
-  const user = ctx.req.user || null; // esempio, modifica in base al tuo auth
-  if (!user || user.level !== 'superowner') {
-    return {
-      redirect: {
-        destination: '/manage_user',
-        permanent: false,
-      },
-    };
-  }
-  return { props: { user } };
-}
-
+requireAuth('superowner')(context)
