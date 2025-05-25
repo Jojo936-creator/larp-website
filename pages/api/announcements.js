@@ -1,25 +1,30 @@
-import { getAnnouncements, saveAnnouncements } from '../../lib/announcements';
+import { supabase } from '../../lib/supabaseClient';
 import { parse } from 'cookie';
 
 export default async function handler(req, res) {
+  // Recupera utente dalla sessione (cookie)
   const cookies = parse(req.headers.cookie || '');
   let user = null;
   if (cookies.session) {
     try {
       user = JSON.parse(cookies.session);
-    } catch {}
+    } catch {
+      // Ignora errori parsing
+    }
   }
-  if (!user) return res.status(401).json({ error: 'Not authenticated' });
 
-  if (req.method === 'GET') {
-    const announcements = await getAnnouncements();
-    return res.status(200).json({ announcements });
+  if (!user) {
+    return res.status(401).json({ error: 'Not authenticated' });
   }
 
   if (req.method === 'POST') {
     const { title, description, channel } = req.body;
-    if (!title || !description || !channel) return res.status(400).json({ error: 'Missing fields' });
 
+    if (!title || !description || !channel) {
+      return res.status(400).json({ error: 'Missing fields' });
+    }
+
+    // Controllo permessi (esempio)
     if (
       (channel === 'owner' && user.level !== 'superowner') ||
       (channel === 'admin' && !['owner', 'superowner'].includes(user.level)) ||
@@ -28,46 +33,37 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'No permission' });
     }
 
-    const newAnn = {
-      title,
-      description,
-      channel,
-      author: user.username,
-      level: user.level,
-      createdAt: new Date().toISOString(),
-    };
-
+    // Prova a inserire l'annuncio in Supabase
     try {
-  const saved = await saveAnnouncements(newAnn);
-  return res.status(201).json({ announcement: saved[0] });
-} catch (error) {
-  // Log nel backend per debug
-  console.error('Errore API POST /announcements:', error);
+      const { data, error } = await supabase
+        .from('announcements')
+        .insert([
+          {
+            title,
+            description,
+            channel,
+            author: user.username,
+            level: user.level,
+            createdAt: new Date().toISOString(),
+          },
+        ]);
 
-  // Invia messaggio di errore dettagliato nel JSON di risposta
-  return res.status(500).json({ 
-    error: 'Failed to save announcement', 
-    details: error.message || String(error) 
-  });
-}
+      if (error) {
+        return res.status(500).json({ error: 'Failed to save announcement', details: error.message });
+      }
 
-  }
+      if (!data || data.length === 0) {
+        return res.status(500).json({ error: 'No data returned from insert' });
+      }
 
-  if (req.method === 'DELETE') {
-    const { id } = req.body;
-    if (!id) return res.status(400).json({ error: 'Missing id' });
-    if (!['owner', 'superowner'].includes(user.level)) {
-      return res.status(403).json({ error: 'No permission' });
-    }
-    try {
-      const { error } = await supabase.from('announcements').delete().eq('id', id);
-      if (error) throw error;
-      return res.status(200).json({ success: true });
-    } catch {
-      return res.status(500).json({ error: 'Failed to save announcement', details: error.message });
+      // Ritorna il primo elemento inserito
+      return res.status(201).json({ announcement: data[0] });
+    } catch (err) {
+      // Cattura errori inattesi
+      return res.status(500).json({ error: 'Unexpected error', details: err.message });
     }
   }
 
+  // Altri metodi HTTP non supportati
   res.status(405).end();
 }
-
