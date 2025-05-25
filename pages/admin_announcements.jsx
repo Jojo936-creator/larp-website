@@ -1,9 +1,4 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
-import { requireAuth } from '../lib/auth';
-import Topbar from '../components/Topbar';
-import { parse } from 'cookie';
-import { getCredentials } from '../lib/credentials';
 
 export default function AnnouncementsPage() {
   const [title, setTitle] = useState('');
@@ -11,6 +6,22 @@ export default function AnnouncementsPage() {
   const [channel, setChannel] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [credentials, setCredentials] = useState(null);
+  const [credentialsError, setCredentialsError] = useState(null);
+
+  // Carico credenziali da API route (se ti servono)
+  useEffect(() => {
+    fetch('/api/credentials')
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          setCredentialsError(data.error);
+        } else {
+          setCredentials(data);
+        }
+      })
+      .catch(e => setCredentialsError(e.message));
+  }, []);
 
   async function saveAnnouncement({ title, description, channel }) {
     const res = await fetch('/api/announcements', {
@@ -35,7 +46,6 @@ export default function AnnouncementsPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     await saveAnnouncement({ title, description, channel });
-
     setTitle('');
     setDescription('');
     setChannel('');
@@ -44,6 +54,11 @@ export default function AnnouncementsPage() {
   return (
     <div style={{ maxWidth: 600, margin: '2rem auto', padding: '1rem' }}>
       <h1>Nuovo Annuncio</h1>
+      {credentialsError && (
+        <div style={{ color: 'red', marginBottom: '1rem' }}>
+          Errore nel caricamento credenziali: {credentialsError}
+        </div>
+      )}
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: '1rem' }}>
           <input
@@ -116,4 +131,5 @@ export default function AnnouncementsPage() {
     </div>
   );
 }
+
 
