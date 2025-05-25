@@ -13,11 +13,35 @@ export default async function handler(req, res) {
     }
   }
 
-  if (!user) {
-    return res.status(401).json({ error: 'Not authenticated' });
+  if (req.method === 'GET') {
+    // Recupera annunci filtrando per canale
+    const { channel } = req.query;
+    if (!channel) {
+      return res.status(400).json({ error: 'Channel query param required' });
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('announcements')
+        .select('*')
+        .eq('channel', channel)
+        .order('createdAt', { ascending: false });
+
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+
+      return res.status(200).json({ announcements: data });
+    } catch (err) {
+      return res.status(500).json({ error: 'Unexpected error', details: err.message });
+    }
   }
 
   if (req.method === 'POST') {
+    if (!user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
     const { title, description, channel } = req.body;
 
     if (!title || !description || !channel) {
@@ -26,29 +50,27 @@ export default async function handler(req, res) {
 
     // Controllo permessi (esempio)
     if (
-      (channel === 'owner' && user.level !== 'superowner') ||
+      (channel === 'ownership' && user.level !== 'superowner') ||
       (channel === 'admin' && !['owner', 'superowner'].includes(user.level)) ||
       (channel === 'staff' && !['owner', 'superowner'].includes(user.level))
     ) {
       return res.status(403).json({ error: 'No permission' });
     }
 
-    // Prova a inserire l'annuncio in Supabase
     try {
-        const { data, error } = await supabase
-  .from('announcements')
-  .insert([
-    {
-      title,
-      description,
-      channel,
-      author: user.username,
-      level: user.level,
-      createdAt: new Date().toISOString(),
-    },
-  ])
-  .select(); 
-
+      const { data, error } = await supabase
+        .from('announcements')
+        .insert([
+          {
+            title,
+            description,
+            channel,
+            author: user.username,
+            level: user.level,
+            createdAt: new Date().toISOString(),
+          },
+        ])
+        .select();
 
       if (error) {
         return res.status(500).json({ error: 'Failed to save announcement', details: error.message });
@@ -58,14 +80,14 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'No data returned from insert' });
       }
 
-      // Ritorna il primo elemento inserito
       return res.status(201).json({ announcement: data[0] });
     } catch (err) {
-      // Cattura errori inattesi
       return res.status(500).json({ error: 'Unexpected error', details: err.message });
     }
   }
 
-  // Altri metodi HTTP non supportati
-  res.status(405).end();
+  res.setHeader('Allow', ['GET', 'POST']);
+  return res.status(405).json({ error: `Method ${req.method} not allowed` });
 }
+
+
