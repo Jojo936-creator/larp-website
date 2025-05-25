@@ -8,6 +8,9 @@ export default function AnnouncementsPage({ user, channel }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [posting, setPosting] = useState(false);
+  const [popup, setPopup] = useState(null);
+  const [modal, setModal] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   // Fetch announcements from API
   const fetchAnnouncements = async () => {
@@ -26,22 +29,20 @@ export default function AnnouncementsPage({ user, channel }) {
   // Load announcements on mount and poll every 15 seconds
   useEffect(() => {
     fetchAnnouncements();
-
-    const interval = setInterval(() => {
-      fetchAnnouncements();
-    }, 15000);
-
+    const interval = setInterval(fetchAnnouncements, 15000);
     return () => clearInterval(interval);
   }, [channel]);
 
-  // Permissions to post
+  // Permissions
   const canPost =
     user?.level === 'superowner' ||
     (channel === 'ownership' && user?.level === 'superowner') ||
     (channel === 'admin' && ['owner', 'superowner'].includes(user?.level)) ||
     (channel === 'staff' && ['owner', 'superowner'].includes(user?.level));
 
-  // Handle posting a new announcement
+  const canDelete = canPost;
+
+  // Post a new announcement
   const handlePost = async () => {
     if (!title.trim() || !description.trim()) return;
 
@@ -56,10 +57,30 @@ export default function AnnouncementsPage({ user, channel }) {
       setAnnouncements([res.data.announcement, ...announcements]);
       setTitle('');
       setDescription('');
+      setPopup({
+        title: res.data.announcement.title,
+        author: res.data.announcement.author,
+      });
+      setTimeout(() => setPopup(null), 2500);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to post announcement.');
     }
     setPosting(false);
+  };
+
+  // Delete an announcement
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this announcement?')) return;
+
+    setDeletingId(id);
+    setError('');
+    try {
+      await axios.delete('/api/announcements', { data: { id } });
+      setAnnouncements(announcements.filter((a) => a.id !== id));
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to delete announcement.');
+    }
+    setDeletingId(null);
   };
 
   return (
@@ -71,18 +92,20 @@ export default function AnnouncementsPage({ user, channel }) {
         background: '#fff',
         borderRadius: 16,
         boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+        position: 'relative',
       }}
     >
       <h1>{channel.charAt(0).toUpperCase() + channel.slice(1)} Announcements</h1>
+      <p>Announcements reserved for authorized users of the {channel} channel.</p>
       <p>
         User: {user?.username} (level: {user?.level})
       </p>
 
       {canPost && (
-        <div style={{ marginBottom: 32 }}>
+        <div style={{ marginTop: 32, marginBottom: 24 }}>
           <input
             type="text"
-            placeholder="Announcement Title"
+            placeholder="Announcement title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             style={{
@@ -96,10 +119,10 @@ export default function AnnouncementsPage({ user, channel }) {
             disabled={posting}
           />
           <textarea
-            placeholder="Detailed Description"
+            placeholder="Detailed description..."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            rows={4}
+            rows={3}
             style={{
               width: '100%',
               padding: 12,
@@ -130,11 +153,11 @@ export default function AnnouncementsPage({ user, channel }) {
         </div>
       )}
 
-      <div>
+      <div style={{ marginTop: 32 }}>
         {loading ? (
           <p>Loading announcements...</p>
         ) : announcements.length === 0 ? (
-          <p>No announcements available.</p>
+          <p style={{ color: '#888' }}>No announcements available.</p>
         ) : (
           announcements.map((a) => (
             <div
@@ -145,15 +168,125 @@ export default function AnnouncementsPage({ user, channel }) {
                 borderRadius: 8,
                 marginBottom: 18,
                 padding: '14px 20px',
+                position: 'relative',
+                cursor: 'pointer',
               }}
+              onClick={() => setModal(a)}
             >
-              <h3 style={{ margin: 0 }}>{a.title}</h3>
-              <small style={{ color: '#888' }}>{new Date(a.createdAt).toLocaleString()}</small>
-              <p>{a.description}</p>
+              <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 2 }}>{a.title}</div>
+              <div style={{ fontSize: 13, color: '#888' }}>{new Date(a.createdAt).toLocaleString()}</div>
+
+              {canDelete && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(a.id);
+                  }}
+                  disabled={deletingId === a.id}
+                  style={{
+                    position: 'absolute',
+                    top: 12,
+                    right: 12,
+                    background: '#e53935',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '4px 12px',
+                    fontSize: 13,
+                    cursor: deletingId === a.id ? 'not-allowed' : 'pointer',
+                    opacity: deletingId === a.id ? 0.6 : 1,
+                  }}
+                >
+                  {deletingId === a.id ? 'Deleting...' : 'Delete'}
+                </button>
+              )}
             </div>
           ))
         )}
       </div>
+
+      {/* Popup after posting */}
+      {popup && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 40,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: '#222',
+            color: '#fff',
+            borderRadius: 10,
+            padding: '18px 32px',
+            fontSize: 18,
+            fontWeight: 600,
+            zIndex: 10000,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            userSelect: 'none',
+          }}
+        >
+          {popup.title}
+          <br />
+          <span style={{ fontSize: 14, color: '#bbb' }}>Author: {popup.author}</span>
+        </div>
+      )}
+
+      {/* Announcement modal */}
+      {modal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0,0,0,0.25)',
+            zIndex: 10001,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          onClick={() => setModal(null)}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 14,
+              padding: '32px 32px 24px 32px',
+              minWidth: 340,
+              maxWidth: 500,
+              boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
+              position: 'relative',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 10 }}>{modal.title}</div>
+            <div style={{ fontSize: 16, marginBottom: 18 }}>{modal.description}</div>
+            <div style={{ fontSize: 14, color: '#888' }}>
+              Author: {modal.author} (Level: {modal.level})
+            </div>
+            <div style={{ fontSize: 14, color: '#888' }}>
+              Created At: {new Date(modal.createdAt).toLocaleString()}
+            </div>
+            <button
+              onClick={() => setModal(null)}
+              style={{
+                position: 'absolute',
+                top: 10,
+                right: 10,
+                background: '#eee',
+                border: 'none',
+                borderRadius: 6,
+                padding: '2px 10px',
+                fontSize: 15,
+                cursor: 'pointer',
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
