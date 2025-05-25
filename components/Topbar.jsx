@@ -27,12 +27,11 @@ export default function Topbar({ user }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const visiblePages = user ? staffPages.filter(page => {
-    if (page.href.includes('admin') && user.level === 'staff') return false;
-    if (page.href.includes('owner') && user.level !== 'owner') return false;
-    if (page.href.includes('owner') && user.level !== 'superowner') return false;
-    return true;
-  }) : [];
+const visiblePages = user ? staffPages.filter(page => {
+  if (page.href.includes('admin') && user.level === 'staff') return false;
+  if (page.href.includes('owner') && !['owner', 'superowner'].includes(user.level)) return false;
+  return true;
+}) : [];
 
   return (
     <nav style={{
