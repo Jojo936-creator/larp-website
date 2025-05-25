@@ -1,296 +1,272 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import Topbar from '../components/Topbar';
-import { useRouter } from 'next/router';
-import { requireAuth } from '../lib/auth';
+import { requireAuth } from '../lib/requireAuth';
 
 export default function ManageUser({ user }) {
-  const router = useRouter();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(null);
 
-  const [newUser, setNewUser] = useState({
-    username: '',
-    password: '',
-    level: 'staff',
-  });
+  // Form nuovo utente
+  const [newUsername, setNewUsername] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newLevel, setNewLevel] = useState('user');
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  // Modifica user
+  const [editUserId, setEditUserId] = useState(null);
+  const [editPassword, setEditPassword] = useState('');
+  const [editLevel, setEditLevel] = useState('');
 
+  // Fetch utenti
   async function fetchUsers() {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch('/api/users');
       if (!res.ok) throw new Error('Failed to fetch users');
       const data = await res.json();
       setUsers(data);
-    } catch (err) {
-      setError(err.message);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  // Crea nuovo utente
   async function handleCreateUser(e) {
     e.preventDefault();
+    if (!newUsername || !newPassword || !newLevel) {
+      alert('Please fill all fields');
+      return;
+    }
+
     try {
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newUser),
+        body: JSON.stringify({ username: newUsername, password: newPassword, level: newLevel }),
       });
-      if (!res.ok) throw new Error('Failed to create user');
-      setNewUser({ username: '', password: '', level: 'staff' });
+      if (!res.ok) {
+        const errorData = await res.json();
+        alert('Error creating user: ' + (errorData.error || res.statusText));
+        return;
+      }
+      setNewUsername('');
+      setNewPassword('');
+      setNewLevel('user');
       fetchUsers();
-    } catch (err) {
-      alert(err.message);
+    } catch (e) {
+      alert('Error creating user: ' + e.message);
     }
   }
 
-  async function handleDeleteUser(id) {
+  // Inizia modifica
+  function startEdit(user) {
+    setEditUserId(user.id);
+    setEditPassword(user.password);
+    setEditLevel(user.level);
+  }
+
+  // Annulla modifica
+  function cancelEdit() {
+    setEditUserId(null);
+    setEditPassword('');
+    setEditLevel('');
+  }
+
+  // Salva modifica
+  async function saveEdit() {
+    if (!editPassword || !editLevel) {
+      alert('Password and level are required');
+      return;
+    }
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editUserId, password: editPassword, level: editLevel }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        alert('Error updating user: ' + (errorData.error || res.statusText));
+        return;
+      }
+      cancelEdit();
+      fetchUsers();
+    } catch (e) {
+      alert('Error updating user: ' + e.message);
+    }
+  }
+
+  // Cancella utente
+  async function deleteUser(id) {
     if (!confirm('Are you sure you want to delete this user?')) return;
     try {
-      const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete user');
+      const res = await fetch(`/api/users?id=${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const errorData = await res.json();
+        alert('Failed to delete user: ' + (errorData.error || res.statusText));
+        return;
+      }
       fetchUsers();
-    } catch (err) {
-      alert(err.message);
+    } catch (e) {
+      alert('Failed to delete user: ' + e.message);
     }
   }
 
   return (
     <>
       <Topbar user={user} />
-      <main className="container">
-        <h1>Manage Users <span className="subtitle">(Superowner only)</span></h1>
+      <main className="max-w-5xl mx-auto mt-12 px-4">
+        <h1 className="text-4xl font-bold mb-8 text-center text-gray-800">Manage Users (Superowner only)</h1>
 
-        <form onSubmit={handleCreateUser} className="create-form" autoComplete="off">
-          <h2>Create New User</h2>
-          <div className="form-row">
+        {/* FORM CREAZIONE */}
+        <form
+          onSubmit={handleCreateUser}
+          className="bg-white shadow-md rounded-lg p-6 mb-12 max-w-xl mx-auto"
+        >
+          <h2 className="text-2xl font-semibold mb-4 text-gray-700">Create New User</h2>
+          <div className="mb-4">
+            <label className="block mb-1 font-medium text-gray-600">Username</label>
             <input
               type="text"
-              name="username"
-              value={newUser.username}
-              onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-              placeholder="Username"
+              value={newUsername}
+              onChange={(e) => setNewUsername(e.target.value)}
+              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
-              className="input"
+              autoComplete="off"
             />
-            <input
-              type="text"
-              name="password"
-              value={newUser.password}
-              onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-              placeholder="Password (visible)"
-              required
-              className="input"
-            />
-            <select
-              name="level"
-              value={newUser.level}
-              onChange={(e) => setNewUser({ ...newUser, level: e.target.value })}
-              className="select"
-            >
-              <option value="staff">staff</option>
-              <option value="owner">owner</option>
-              <option value="superowner">superowner</option>
-            </select>
-            <button type="submit" className="btn btn-primary">
-              Add User
-            </button>
           </div>
+          <div className="mb-4">
+            <label className="block mb-1 font-medium text-gray-600">Password (visible)</label>
+            <input
+              type="text"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+              autoComplete="new-password"
+            />
+          </div>
+          <div className="mb-6">
+            <label className="block mb-1 font-medium text-gray-600">Level</label>
+            <select
+              value={newLevel}
+              onChange={(e) => setNewLevel(e.target.value)}
+              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            >
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+              <option value="superowner">Superowner</option>
+            </select>
+          </div>
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white py-3 rounded font-semibold hover:bg-blue-700 transition"
+          >
+            Create User
+          </button>
         </form>
 
-        {loading && <p className="loading">Loading users...</p>}
-        {error && <p className="error">{error}</p>}
-
-        {!loading && users.length === 0 && <p>No users found.</p>}
-
-        {!loading && users.length > 0 && (
-          <table className="users-table">
-            <thead>
-              <tr>
-                <th>Username</th>
-                <th>Password</th>
-                <th>Level</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u, i) => (
-                <tr key={u.id} className={i % 2 === 0 ? 'even' : 'odd'}>
-                  <td>{u.username}</td>
-                  <td className="password-cell">{u.password}</td>
-                  <td>{u.level}</td>
-                  <td>
-                    <button
-                      onClick={() => handleDeleteUser(u.id)}
-                      className="btn btn-danger"
-                      aria-label={`Delete user ${u.username}`}
-                      title={`Delete user ${u.username}`}
-                    >
-                      Delete
-                    </button>
-                  </td>
+        {/* TABELLA UTENTI */}
+        <div className="overflow-x-auto">
+          {loading ? (
+            <p className="text-center text-gray-600">Loading users...</p>
+          ) : error ? (
+            <p className="text-center text-red-500">Error: {error}</p>
+          ) : users.length === 0 ? (
+            <p className="text-center text-gray-600">No users found.</p>
+          ) : (
+            <table className="min-w-full bg-white rounded-lg shadow overflow-hidden">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="py-3 px-6 text-left font-medium text-gray-700">Username</th>
+                  <th className="py-3 px-6 text-left font-medium text-gray-700">Password</th>
+                  <th className="py-3 px-6 text-left font-medium text-gray-700">Level</th>
+                  <th className="py-3 px-6 text-center font-medium text-gray-700">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-
-        <style jsx>{`
-          .container {
-            max-width: 900px;
-            margin: 50px auto 80px;
-            padding: 0 20px;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #222;
-          }
-          h1 {
-            font-weight: 900;
-            font-size: 2.6rem;
-            letter-spacing: -0.04em;
-            margin-bottom: 30px;
-            color: #1e40af;
-            text-shadow: 1px 1px 5px rgba(0,0,0,0.1);
-          }
-          .subtitle {
-            font-weight: 400;
-            font-size: 1.2rem;
-            color: #555;
-            margin-left: 10px;
-          }
-          .create-form {
-            background: #f5f7ff;
-            padding: 30px 25px;
-            border-radius: 15px;
-            box-shadow: 0 15px 30px rgba(30,64,175,0.1);
-            margin-bottom: 50px;
-            transition: box-shadow 0.3s ease;
-          }
-          .create-form:hover {
-            box-shadow: 0 20px 40px rgba(30,64,175,0.2);
-          }
-          .form-row {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            align-items: center;
-          }
-          .input, .select {
-            flex: 1 1 150px;
-            padding: 12px 15px;
-            font-size: 1.05rem;
-            border: 2px solid #a3bffa;
-            border-radius: 10px;
-            transition: border-color 0.3s ease, box-shadow 0.3s ease;
-            outline-offset: 2px;
-          }
-          .input:focus, .select:focus {
-            border-color: #1e40af;
-            box-shadow: 0 0 6px #1e40afaa;
-          }
-          .btn {
-            cursor: pointer;
-            font-weight: 700;
-            border-radius: 12px;
-            padding: 12px 28px;
-            border: none;
-            transition: background-color 0.3s ease, box-shadow 0.3s ease;
-            box-shadow: 0 4px 10px rgba(30,64,175,0.15);
-          }
-          .btn-primary {
-            background-color: #1e40af;
-            color: white;
-          }
-          .btn-primary:hover {
-            background-color: #2946d5;
-            box-shadow: 0 6px 18px rgba(41,70,213,0.45);
-          }
-          .btn-danger {
-            background-color: #e53e3e;
-            color: white;
-            padding: 8px 16px;
-            font-size: 0.9rem;
-            box-shadow: 0 4px 10px rgba(229,62,62,0.3);
-          }
-          .btn-danger:hover {
-            background-color: #c53030;
-            box-shadow: 0 6px 18px rgba(197,48,48,0.6);
-          }
-          .loading {
-            font-size: 1.2rem;
-            font-weight: 600;
-            color: #666;
-            margin-top: 40px;
-          }
-          .error {
-            color: #b91c1c;
-            font-weight: 700;
-            margin-top: 20px;
-          }
-          .users-table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0 8px;
-            font-size: 1rem;
-          }
-          .users-table th, .users-table td {
-            padding: 14px 18px;
-            text-align: left;
-          }
-          .users-table th {
-            background: #1e40af;
-            color: white;
-            font-weight: 700;
-            letter-spacing: 0.03em;
-            text-transform: uppercase;
-            border-radius: 10px 10px 0 0;
-          }
-          .users-table tbody tr {
-            background: white;
-            box-shadow: 0 3px 8px rgba(30,64,175,0.1);
-            transition: box-shadow 0.3s ease;
-            border-radius: 0 0 10px 10px;
-          }
-          .users-table tbody tr.even {
-            background: #f8faff;
-          }
-          .users-table tbody tr:hover {
-            box-shadow: 0 8px 20px rgba(30,64,175,0.2);
-          }
-          .password-cell {
-            font-family: monospace;
-            color: #444;
-            user-select: text;
-            letter-spacing: 0.1em;
-          }
-
-          @media (max-width: 600px) {
-            .form-row {
-              flex-direction: column;
-              gap: 15px;
-            }
-            .input, .select {
-              flex: 1 1 auto;
-              width: 100%;
-            }
-            .btn {
-              width: 100%;
-              padding: 14px;
-            }
-          }
-        `}</style>
+              </thead>
+              <tbody>
+                {users.map((u) => (
+                  <tr
+                    key={u.id}
+                    className="border-b border-gray-200 hover:bg-gray-50 transition"
+                  >
+                    <td className="py-3 px-6">{u.username}</td>
+                    <td className="py-3 px-6 font-mono">{u.password}</td>
+                    <td className="py-3 px-6">
+                      {editUserId === u.id ? (
+                        <select
+                          value={editLevel}
+                          onChange={(e) => setEditLevel(e.target.value)}
+                          className="border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="user">User</option>
+                          <option value="admin">Admin</option>
+                          <option value="superowner">Superowner</option>
+                        </select>
+                      ) : (
+                        u.level
+                      )}
+                    </td>
+                    <td className="py-3 px-6 text-center space-x-2">
+                      {editUserId === u.id ? (
+                        <>
+                          <input
+                            type="text"
+                            value={editPassword}
+                            onChange={(e) => setEditPassword(e.target.value)}
+                            className="border border-gray-300 rounded px-2 py-1 w-32 font-mono"
+                          />
+                          <button
+                            onClick={saveEdit}
+                            className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 transition"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={cancelEdit}
+                            className="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400 transition"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => startEdit(u)}
+                            className="bg-yellow-400 px-3 py-1 rounded hover:bg-yellow-500 transition"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => deleteUser(u.id)}
+                            className="bg-red-500 px-3 py-1 rounded text-white hover:bg-red-600 transition"
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </main>
     </>
   );
 }
 
-// Server-side auth
-export async function getServerSideProps(context) {
-  return requireAuth('superowner')(context);
-}
+export const getServerSideProps = requireAuth('superowner');
+
 
 
 
