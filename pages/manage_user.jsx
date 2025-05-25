@@ -1,19 +1,11 @@
 import { useState, useEffect } from 'react';
 import Topbar from '../components/Topbar';
-import { useRouter } from 'next/router';
+import { requireAuth } from '../lib/auth';
 
 export default function ManageUser({ user }) {
-  const router = useRouter();
-  const [users, setUsers] = useState(null);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // Redirect if not superowner
-  useEffect(() => {
-    if (!user || user.level !== 'superowner') {
-      router.replace('/403'); // o altra pagina access denied
-    }
-  }, [user, router]);
 
   // Fetch users from API
   async function fetchUsers() {
@@ -23,10 +15,9 @@ export default function ManageUser({ user }) {
       const res = await fetch('/api/users');
       if (!res.ok) throw new Error('Failed to fetch users');
       const data = await res.json();
-      setUsers(data);
+      setUsers(data || []);
     } catch (e) {
       setError(e.message);
-      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -36,14 +27,15 @@ export default function ManageUser({ user }) {
     fetchUsers();
   }, []);
 
-  // Delete user handler
+  // Delete user
   async function deleteUser(id) {
     if (!confirm('Are you sure you want to delete this user?')) return;
     try {
-      const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/users/${id}`, {
+        method: 'DELETE',
+      });
       if (!res.ok) throw new Error('Failed to delete user');
-      // Refetch users after deletion
-      fetchUsers();
+      fetchUsers(); // Refresh list
     } catch (e) {
       alert('Error deleting user: ' + e.message);
     }
@@ -53,45 +45,27 @@ export default function ManageUser({ user }) {
     <>
       <Topbar user={user} />
       <main style={{ maxWidth: 900, margin: '40px auto', padding: '0 20px' }}>
-        <h1>Manage Users (Superowner only)</h1>
+        <h1 style={{ fontSize: 28, marginBottom: 16 }}>Manage Users (Superowner only)</h1>
 
         {loading && <p>Loading users...</p>}
         {error && <p style={{ color: 'red' }}>Error: {error}</p>}
+        {!loading && users.length === 0 && <p>No users found.</p>}
 
-        {!loading && users && users.length === 0 && <p>No users found.</p>}
-
-        {!loading && users && users.length > 0 && (
-          <table
-            style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              marginTop: 20,
-            }}
-          >
+        {!loading && users.length > 0 && (
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 20 }}>
             <thead>
               <tr>
-                <th style={{ borderBottom: '1px solid #ccc', padding: '8px' }}>
-                  Username
-                </th>
-                <th style={{ borderBottom: '1px solid #ccc', padding: '8px' }}>
-                  Level
-                </th>
-                <th style={{ borderBottom: '1px solid #ccc', padding: '8px' }}>
-                  Actions
-                </th>
+                <th style={{ borderBottom: '1px solid #ccc', padding: 8 }}>Username</th>
+                <th style={{ borderBottom: '1px solid #ccc', padding: 8 }}>Level</th>
+                <th style={{ borderBottom: '1px solid #ccc', padding: 8 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {users.map((u) => (
                 <tr key={u.id}>
-                  <td style={{ borderBottom: '1px solid #eee', padding: '8px' }}>
-                    {u.username}
-                  </td>
-                  <td style={{ borderBottom: '1px solid #eee', padding: '8px' }}>
-                    {u.level}
-                  </td>
-                  <td style={{ borderBottom: '1px solid #eee', padding: '8px' }}>
-                    {/* Qui puoi aggiungere il pulsante modifica se vuoi */}
+                  <td style={{ borderBottom: '1px solid #eee', padding: 8 }}>{u.username}</td>
+                  <td style={{ borderBottom: '1px solid #eee', padding: 8 }}>{u.level}</td>
+                  <td style={{ borderBottom: '1px solid #eee', padding: 8 }}>
                     <button
                       onClick={() => deleteUser(u.id)}
                       style={{
@@ -115,4 +89,9 @@ export default function ManageUser({ user }) {
     </>
   );
 }
-requireAuth('superowner')(context)
+
+// Server-side authentication check for superowner
+export async function getServerSideProps(context) {
+  return requireAuth('superowner')(context);
+}
+
