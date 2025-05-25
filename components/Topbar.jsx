@@ -10,7 +10,7 @@ const staffPages = [
   { href: '/admin_info', label: 'Admin Info' },
   { href: '/ownership_announcements', label: 'Owner Announcements' },
   { href: '/ownership_info', label: 'Owner Info' },
-  { href: '/new_user', label: 'Add New User' }, // <-- aggiunta pagina new_user
+  { href: '/manage_user', label: 'Manage User' }, // <-- aggiunta pagina new_user
 ];
 
 export default function Topbar({ user }) {
@@ -31,7 +31,7 @@ export default function Topbar({ user }) {
   const visiblePages = user ? staffPages.filter(page => {
     if (page.href.includes('admin') && user.level === 'staff') return false;
     if (page.href.includes('owner') && user.level !== 'owner' && user.level !== 'superowner') return false;
-    if (page.href === '/new_user' && user.level !== 'superowner') return false; // solo superowner
+    if (page.href === '/manage_user' && user.level !== 'superowner') return false; // solo superowner
     return true;
   }) : [];
 
