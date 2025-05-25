@@ -38,11 +38,19 @@ export default async function handler(req, res) {
     };
 
     try {
-      const saved = await saveAnnouncements(newAnn);
-      return res.status(201).json({ announcement: saved[0] });
-    } catch (error) {
-      return res.status(500).json({ error: 'Failed to save announcement' });
-    }
+  const saved = await saveAnnouncements(newAnn);
+  return res.status(201).json({ announcement: saved[0] });
+} catch (error) {
+  // Log nel backend per debug
+  console.error('Errore API POST /announcements:', error);
+
+  // Invia messaggio di errore dettagliato nel JSON di risposta
+  return res.status(500).json({ 
+    error: 'Failed to save announcement', 
+    details: error.message || String(error) 
+  });
+}
+
   }
 
   if (req.method === 'DELETE') {
