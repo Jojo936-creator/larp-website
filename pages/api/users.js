@@ -1,12 +1,14 @@
-import { createClient } from '@supabase/supabase-js';
+import { supabaseAdmin } from '../../lib/supabaseAdmin';
+
+export default async function handler(req, res) {
+  // Solo metodi GET, POST, PUT, DELETE supportati
+  const { method } = req;
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-console.log('SUPABASE URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
-console.log('SERVICE ROLE KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? '****' : 'NOT SET');
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
