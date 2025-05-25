@@ -31,6 +31,9 @@ export default function Home({ user }) {
           ) : (
             <Link href="/login">Staff Login</Link>
           )}
+          <div style={{ marginTop: 16 }}>
+            <Link href="https://larp-website.betteruptime.com">Status</Link>
+          </div>
         </div>
       </main>
       <footer className={styles.footer}>
