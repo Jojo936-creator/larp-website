@@ -1,13 +1,14 @@
+import AnnouncementsPage from '../components/AnnouncementsPage';
 import { requireAuth } from '../lib/auth';
-import AnnouncementCreator from '../components/AnnouncementCreator';
 
-export default function AdminAnnouncementsPage({ user }) {
-  return <AnnouncementCreator user={user} channel="admin" />;
+export default function StaffAnnouncements({ user }) {
+  return <AnnouncementsPage user={user} channel="admin" />;
 }
 
 export async function getServerSideProps(context) {
   return requireAuth('admin')(context);
 }
+
 
 
 
