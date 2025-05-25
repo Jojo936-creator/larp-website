@@ -1,135 +1,151 @@
 import { useEffect, useState } from 'react';
+import axios from 'axios';
+import Topbar from '../components/Topbar';
+import { requireAuth } from '../lib/auth';
 
-export default function AnnouncementsPage() {
+export default function AnnouncementsPage({ user }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [channel, setChannel] = useState('');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [credentials, setCredentials] = useState(null);
   const [credentialsError, setCredentialsError] = useState(null);
+  const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  // Carico credenziali da API route (se ti servono)
   useEffect(() => {
-    fetch('/api/credentials')
-      .then(res => res.json())
-      .then(data => {
-        if (data.error) {
-          setCredentialsError(data.error);
+    axios.get('/api/credentials')
+      .then(res => {
+        if (res.data.error) {
+          setCredentialsError(res.data.error);
         } else {
-          setCredentials(data);
+          setCredentials(res.data);
         }
       })
       .catch(e => setCredentialsError(e.message));
   }, []);
 
-  async function saveAnnouncement({ title, description, channel }) {
-    const res = await fetch('/api/announcements', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, description, channel }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      setError(`Errore: ${data.error}\nDettagli: ${data.details || 'Nessun dettaglio'}`);
-      setSuccess('');
-      return null;
-    }
-
+  const handlePost = async () => {
+    setLoading(true);
     setError('');
-    setSuccess('Annuncio salvato con successo!');
-    return data.announcement;
-  }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    await saveAnnouncement({ title, description, channel });
-    setTitle('');
-    setDescription('');
-    setChannel('');
+    setSuccess('');
+    try {
+      const res = await axios.post('/api/announcements', {
+        title,
+        description,
+        channel,
+      });
+      setTitle('');
+      setDescription('');
+      setChannel('');
+      setSuccess('Annuncio salvato con successo!');
+    } catch (e) {
+      setError(e.response?.data?.error || 'Errore');
+    }
+    setLoading(false);
   };
 
+  const canPost = user?.level === 'owner' || user?.level === 'superowner' || user?.level === 'admin';
+
   return (
-    <div style={{ maxWidth: 600, margin: '2rem auto', padding: '1rem' }}>
-      <h1>Nuovo Annuncio</h1>
-      {credentialsError && (
-        <div style={{ color: 'red', marginBottom: '1rem' }}>
-          Errore nel caricamento credenziali: {credentialsError}
-        </div>
-      )}
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '1rem' }}>
-          <input
-            type="text"
-            placeholder="Titolo"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-            style={{ width: '100%', padding: '0.5rem' }}
-          />
-        </div>
+    <div>
+      <Topbar user={user} />
+      <div style={{
+        maxWidth: 900,
+        margin: '48px auto 0 auto',
+        background: '#fff',
+        borderRadius: 16,
+        boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
+        padding: '40px 32px 32px 32px',
+        border: '1px solid #e0e0e0',
+        position: 'relative'
+      }}>
+        <h1>Nuovo Annuncio</h1>
+        <p>Crea un annuncio visibile ai canali selezionati.</p>
+        <p style={{ marginTop: 24, color: '#555' }}>User: {user.username} (level: {user.level})</p>
 
-        <div style={{ marginBottom: '1rem' }}>
-          <textarea
-            placeholder="Descrizione"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            required
-            style={{ width: '100%', padding: '0.5rem', minHeight: 100 }}
-          />
-        </div>
+        {credentialsError && (
+          <div style={{ color: '#c0392b', marginTop: 16 }}>
+            Errore nel caricamento credenziali: {credentialsError}
+          </div>
+        )}
 
-        <div style={{ marginBottom: '1rem' }}>
-          <select
-            value={channel}
-            onChange={(e) => setChannel(e.target.value)}
-            required
-            style={{ width: '100%', padding: '0.5rem' }}
-          >
-            <option value="">Seleziona canale</option>
-            <option value="owner">Owner</option>
-            <option value="admin">Admin</option>
-            <option value="staff">Staff</option>
-          </select>
-        </div>
-
-        <button type="submit" style={{ padding: '0.5rem 1rem' }}>
-          Salva Annuncio
-        </button>
-      </form>
-
-      {error && (
-        <div
-          style={{
-            marginTop: '1rem',
-            color: 'red',
-            whiteSpace: 'pre-wrap',
-            backgroundColor: '#fee',
-            padding: '0.5rem',
-            borderRadius: 4,
-          }}
-        >
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div
-          style={{
-            marginTop: '1rem',
-            color: 'green',
-            backgroundColor: '#efe',
-            padding: '0.5rem',
-            borderRadius: 4,
-          }}
-        >
-          {success}
-        </div>
-      )}
+        {canPost && (
+          <div style={{ marginTop: 32 }}>
+            <input
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              style={{
+                width: '100%',
+                padding: 10,
+                fontSize: 16,
+                borderRadius: 8,
+                border: '1px solid #ccc',
+                marginBottom: 8
+              }}
+              placeholder="Titolo"
+            />
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              rows={3}
+              style={{
+                width: '100%',
+                padding: 12,
+                fontSize: 16,
+                borderRadius: 8,
+                border: '1px solid #ccc',
+                marginBottom: 8
+              }}
+              placeholder="Descrizione dettagliata..."
+            />
+            <select
+              value={channel}
+              onChange={e => setChannel(e.target.value)}
+              style={{
+                width: '100%',
+                padding: 10,
+                fontSize: 16,
+                borderRadius: 8,
+                border: '1px solid #ccc',
+                marginBottom: 8
+              }}
+              required
+            >
+              <option value="">Seleziona canale</option>
+              <option value="owner">Owner</option>
+              <option value="admin">Admin</option>
+              <option value="staff">Staff</option>
+            </select>
+            <button
+              onClick={handlePost}
+              disabled={loading || !title.trim() || !description.trim() || !channel}
+              style={{
+                marginTop: 8,
+                background: '#1a73e8',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 8,
+                padding: '10px 28px',
+                fontWeight: 600,
+                fontSize: 16,
+                cursor: 'pointer'
+              }}
+            >
+              Salva Annuncio
+            </button>
+            {error && <div style={{ color: '#c0392b', marginTop: 8 }}>{error}</div>}
+            {success && <div style={{ color: '#2e7d32', marginTop: 8 }}>{success}</div>}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
+
+export async function getServerSideProps(context) {
+  return requireAuth('staff')(context); // o 'admin' o 'owner' se necessario
+}
+
 
 
