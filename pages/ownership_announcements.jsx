@@ -1,10 +1,11 @@
+import AnnouncementsPage from '../components/AnnouncementsPage';
 import { requireAuth } from '../lib/auth';
-import AnnouncementCreator from '../components/AnnouncementCreator';
 
-export default function OwnershipAnnouncementsPage({ user }) {
-  return <AnnouncementCreator user={user} channel="ownership" />;
+export default function StaffAnnouncements({ user }) {
+  return <AnnouncementsPage user={user} channel="ownership" />;
 }
 
 export async function getServerSideProps(context) {
-  return requireAuth['owner', 'superowner'](context); // o 'superowner' se necessario
+  return requireAuth['owner', 'superowner'](context);
 }
+
