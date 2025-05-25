@@ -160,11 +160,12 @@ export default function NewUser({ user }) {
   );
 }
 
-// Proteggi la pagina, solo superowner può entrare
+// Proteggi la pagina con requireAuth solo superowner
 export async function getServerSideProps(ctx) {
   const authResult = await requireAuth('superowner')(ctx);
-  if (!authResult.props) return authResult; // redirect se non autorizzato
+  if (!authResult.props) return authResult; // redirect non autorizzato
   return {
     props: { user: authResult.props.user },
   };
 }
+
