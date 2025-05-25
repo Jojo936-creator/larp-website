@@ -122,7 +122,7 @@ export async function getServerSideProps(ctx) {
   if (!user || user.level !== 'superowner') {
     return {
       redirect: {
-        destination: '/403',
+        destination: '/manage_user',
         permanent: false,
       },
     };
