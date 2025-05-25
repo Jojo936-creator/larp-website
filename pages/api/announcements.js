@@ -1,8 +1,7 @@
 import { getAnnouncements, saveAnnouncements } from '../../lib/announcements';
 import { parse } from 'cookie';
-import { getCredentials } from '../../lib/credentials';
 
-export default function handler(req, res) {
+export default async function handler(req, res) {
   const cookies = parse(req.headers.cookie || '');
   let user = null;
   if (cookies.session) {
@@ -13,12 +12,14 @@ export default function handler(req, res) {
   if (!user) return res.status(401).json({ error: 'Not authenticated' });
 
   if (req.method === 'GET') {
-    return res.status(200).json({ announcements: getAnnouncements() });
+    const announcements = await getAnnouncements();
+    return res.status(200).json({ announcements });
   }
 
   if (req.method === 'POST') {
     const { title, description, channel } = req.body;
     if (!title || !description || !channel) return res.status(400).json({ error: 'Missing fields' });
+
     if (
       (channel === 'owner' && user.level !== 'superowner') ||
       (channel === 'admin' && !['owner', 'superowner'].includes(user.level)) ||
@@ -26,19 +27,22 @@ export default function handler(req, res) {
     ) {
       return res.status(403).json({ error: 'No permission' });
     }
-    const announcements = getAnnouncements();
+
     const newAnn = {
-      id: Date.now().toString(),
       title,
       description,
       channel,
       author: user.username,
       level: user.level,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
-    announcements.unshift(newAnn);
-    saveAnnouncements(announcements);
-    return res.status(201).json({ announcement: newAnn });
+
+    try {
+      const saved = await saveAnnouncements(newAnn);
+      return res.status(201).json({ announcement: saved[0] });
+    } catch (error) {
+      return res.status(500).json({ error: 'Failed to save announcement' });
+    }
   }
 
   if (req.method === 'DELETE') {
@@ -47,11 +51,15 @@ export default function handler(req, res) {
     if (!['owner', 'superowner'].includes(user.level)) {
       return res.status(403).json({ error: 'No permission' });
     }
-    let announcements = getAnnouncements();
-    announcements = announcements.filter(a => a.id !== id);
-    saveAnnouncements(announcements);
-    return res.status(200).json({ success: true });
+    try {
+      const { error } = await supabase.from('announcements').delete().eq('id', id);
+      if (error) throw error;
+      return res.status(200).json({ success: true });
+    } catch {
+      return res.status(500).json({ error: 'Failed to delete announcement' });
+    }
   }
 
   res.status(405).end();
 }
+
