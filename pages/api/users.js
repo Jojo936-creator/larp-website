@@ -88,7 +88,7 @@ export default async function handler(req, res) {
 
       default:
         res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
-        return res.status(405).end(Method ${method} Not Allowed);
+        return res.status(405).end('Method ${method} Not Allowed');
     }
   } catch (err) {
     console.error('Unexpected error:', err);
