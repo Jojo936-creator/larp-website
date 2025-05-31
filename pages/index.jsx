@@ -1,5 +1,5 @@
 import Head from "next/head";
-import Image from "next/image";
+// import Image from "next/image";  // rimossa questa riga
 import { Geist, Geist_Mono } from "next/font/google";
 import styles from "@/styles/Home.module.css";
 import Link from 'next/link';
@@ -16,12 +16,17 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const items = [
+  { img: '/img1.png', title: 'Title 1', text: 'Description 1' },
+  { img: '/img2.png', title: 'Title 2', text: 'Description 2' },
+];
+
 export default function Home({ user }) {
   return (
     <div className={`${styles.page} ${geistSans.variable} ${geistMono.variable}`}>
       <Topbar user={user} />
-      <main className={styles.main}
-        ].map((item, idx) => (
+      <main className={styles.main}>
+        {items.map((item, idx) => (
           <div
             key={item.img}
             style={{
@@ -62,12 +67,8 @@ export default function Home({ user }) {
                 flexDirection: 'column',
                 alignItems: idx % 2 === 0 ? 'flex-start' : 'flex-end',
               }}
-              onMouseEnter={e => {
-                e.currentTarget.style.opacity = 1;
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.opacity = 0;
-              }}
+              onMouseEnter={e => { e.currentTarget.style.opacity = 1; }}
+              onMouseLeave={e => { e.currentTarget.style.opacity = 0; }}
             >
               <h2 style={{ fontSize: 28, margin: 0, color: '#1a73e8' }}>{item.title}</h2>
               <p style={{ margin: '12px 0 0 0', fontSize: 19 }}>{item.text}</p>
@@ -81,13 +82,7 @@ export default function Home({ user }) {
           target="_blank"
           rel="noopener noreferrer"
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
+          {/* Rimosse immagini */}
           Learn
         </a>
         <a
@@ -95,13 +90,7 @@ export default function Home({ user }) {
           target="_blank"
           rel="noopener noreferrer"
         >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
+          {/* Rimosse immagini */}
           Examples
         </a>
         <a
@@ -109,13 +98,7 @@ export default function Home({ user }) {
           target="_blank"
           rel="noopener noreferrer"
         >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
+          {/* Rimosse immagini */}
           Go to nextjs.org →
         </a>
       </footer>
