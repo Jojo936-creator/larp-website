@@ -20,14 +20,7 @@ export default function Home({ user }) {
   return (
     <div className={`${styles.page} ${geistSans.variable} ${geistMono.variable}`}>
       <Topbar user={user} />
-      <main className={styles.main}>
-        {/* 5 sezioni con sfondo immagine a tutta larghezza e box testo che appare su hover, tutto allineato a sinistra senza spazi bianchi */}
-        {[
-          { img: '/IMG_2318.jpeg', title: 'Titolo 1', text: 'testtesstotesto' },
-          { img: '/IMG_2323.jpeg', title: 'Titolo 2', text: 'testtesstotesto' },
-          { img: '/image.jpeg', title: 'Titolo 3', text: 'testtesstotesto' },
-          { img: '/image.jepg.webp', title: 'Titolo 4', text: 'testtesstotesto' },
-          { img: '/image.jpe', title: 'Titolo 5', text: 'testtesstotesto' },
+      <main className={styles.main}
         ].map((item, idx) => (
           <div
             key={item.img}
@@ -45,20 +38,6 @@ export default function Home({ user }) {
               padding: 0,
             }}
           >
-            <Image
-              src={item.img}
-              alt={item.title}
-              fill
-              style={{
-                objectFit: 'cover',
-                filter: 'brightness(0.7)',
-                zIndex: 1,
-                pointerEvents: 'none',
-                userSelect: 'none',
-              }}
-              sizes="100vw"
-              priority={idx === 0}
-            />
             <div
               className="hover-fade-box"
               style={{
